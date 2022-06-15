@@ -96,7 +96,7 @@ class Block {
 			<?php endif; ?>
 			<p><?php echo __( 'The current post ID is ', 'site-counts' ) . get_queried_object_id() . '.'; ?></p>
 			<?php
-			$posts_to_exclude = [ 11 ];
+			$posts_to_exclude = [ get_queried_object_id ];
 			$compare_time_posts_query_args = [
 				'fields' => 'ids',
 				'post_type' => [ 'post', 'page' ],
