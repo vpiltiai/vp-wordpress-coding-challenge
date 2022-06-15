@@ -63,66 +63,84 @@ class Block {
 	 * @return string The markup of the block.
 	 */
 	public function render_callback( $attributes, $content, $block ) {
-		$post_types = get_post_types(  [ 'public' => true ] );
-		$class_name = $attributes['className'];
+		$post_types = get_post_types( [ 'public' => true ] );
+		$class_name = $attributes[ 'className' ];
 		ob_start();
-
 		?>
-        <div class="<?php echo $class_name; ?>">
-			<h2>Post Counts</h2>
-			<ul>
-			<?php
-			foreach ( $post_types as $post_type_slug ) :
-                $post_type_object = get_post_type_object( $post_type_slug  );
-                $post_count = count(
-                    get_posts(
-						[
+		<div class="<?php echo $class_name; ?>">
+			<?php if ( $post_types ) : ?>
+				<?php _e( 'Post Counts', 'site-counts' ); ?>
+				<ul>
+					<?php
+					foreach ( $post_types as $post_type_slug ) {
+						$post_type_object = get_post_type_object( $post_type_slug  );
+						
+						$posts_query_args = [
+							'fields' => 'ids',
 							'post_type' => $post_type_slug,
-							'posts_per_page' => -1,
-						]
-					)
-                );
+							'posts_per_page' => 10,
+							'update_post_meta_cache' => false,
+							'update_post_term_cache' => false,
+						];
 
-				?>
-				<li><?php echo 'There are ' . $post_count . ' ' .
-					  $post_type_object->labels->name . '.'; ?></li>
-			<?php endforeach;	?>
-			</ul><p><?php echo 'The current post ID is ' . $_GET['post_id'] . '.'; ?></p>
-
+						$posts_query = new WP_Query( $posts_query_args );
+						$posts_count = $posts_query->found_posts;
+						wp_reset_query();
+						
+						echo '<li>' . __( 'There are', 'site-counts' ) . ' ' . $posts_count . ' ' . $post_type_object->labels->name . '.</li>';
+					 } 
+					 ?>
+				</ul>
+			<?php else : ?>
+				<?php _e( 'Sorry, no found any posts.', 'site-counts' ); ?>
+			<?php endif; ?>
+			<p><?php echo __( 'The current post ID is ', 'site-counts' ) . get_queried_object_id() . '.'; ?></p>
 			<?php
-			$query = new WP_Query(  array(
-				'post_type' => ['post', 'page'],
+			$posts_to_exclude = [ get_queried_object_id ];
+			$compare_time_posts_query_args = [
+				'fields' => 'ids',
+				'post_type' => [ 'post', 'page' ],
+				'posts_per_page' => 5 + count( $posts_to_exclude ),
+				'no_found_rows' => true,
+				'update_post_meta_cache' => false,
 				'post_status' => 'any',
-				'date_query' => array(
-					array(
-						'hour'      => 9,
-						'compare'   => '>=',
-					),
-					array(
-						'hour' => 17,
-						'compare'=> '<=',
-					),
-				),
-                'tag'  => 'foo',
-                'category_name'  => 'baz',
-				  'post__not_in' => [ get_the_ID() ],
-			));
+				'date_query' => [
+					[
+						'hour'		=> 9,
+						'compare'	=> '>=',
+					],
+					[
+						'hour' 		=> 17,
+						'compare'	=> '<=',
+					],
+				],
+				'tag' => 'foo',
+				'category_name' => 'baz',
+			];
 
-			if ( $query->have_posts() ) :
-				?>
-				 <h2>5 posts with the tag of foo and the category of baz</h2>
-                <ul>
-                <?php
+			$compare_time_posts_query = new WP_Query( $compare_time_posts_query_args );
 
-                 foreach ( array_slice( $query->posts, 0, 5 ) as $post ) :
-                    ?><li><?php echo $post->post_title ?></li><?php
-				endforeach;
-			endif;
-		 	?>
-			</ul>
+			if ( $compare_time_posts_query->have_posts() ) : ?>
+				<h2><?php _e( '5 posts with the tag of foo and the category of baz', 'site-counts' ); ?></h2>
+				<ul>
+					<?php
+						while ( $compare_time_posts_query->have_posts() ) {
+							$compare_time_posts_query->the_post();
+
+							if ( in_array( get_the_ID(), $posts_to_exclude ) ) {
+								continue;
+							}
+
+							the_title( '<li>', '</li>');
+						}
+						wp_reset_query();
+					?>
+				</ul>
+			<?php else: ?>
+				<?php _e( 'Sorry, no found any posts.', 'site-counts' ); ?>
+			<?php endif; ?>
 		</div>
 		<?php
-
 		return ob_get_clean();
 	}
 }
